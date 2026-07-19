@@ -411,3 +411,66 @@ def test_average_costs_are_calculated_separately_by_ticker() -> None:
         "VWCE": Decimal("110"),
         "XEON": Decimal("140"),
     }
+
+
+def test_unrealized_pnl_calculates_profit_for_each_position() -> None:
+    portfolio = Portfolio([
+        make_transaction(
+            "BUY",
+            ticker="VWCE",
+            quantity="10",
+            price="100",
+        ),
+        make_transaction(
+            "BUY",
+            ticker="VWCE",
+            quantity="10",
+            price="120",
+        ),
+        make_transaction(
+            "BUY",
+            ticker="XEON",
+            quantity="5",
+            price="140",
+        ),
+    ])
+
+    price_provider = DictionaryPriceProvider({
+        "VWCE": Decimal("125"),
+        "XEON": Decimal("138"),
+    })
+
+    assert portfolio.unrealized_pnl(price_provider) == {
+        "VWCE": Decimal("300"),
+        "XEON": Decimal("-10"),
+    }
+
+
+def test_unrealized_pnl_of_empty_portfolio_is_empty() -> None:
+    portfolio = Portfolio([])
+    price_provider = DictionaryPriceProvider({})
+
+    assert portfolio.unrealized_pnl(price_provider) == {}
+
+
+def test_unrealized_pnl_uses_remaining_quantity_after_sell() -> None:
+    portfolio = Portfolio([
+        make_transaction(
+            "BUY",
+            quantity="10",
+            price="100",
+        ),
+        make_transaction(
+            "SELL",
+            quantity="4",
+            price="130",
+        ),
+    ])
+
+    price_provider = DictionaryPriceProvider({
+        "VWCE": Decimal("120"),
+    })
+
+    assert portfolio.unrealized_pnl(price_provider) == {
+        "VWCE": Decimal("120"),
+    }

@@ -82,7 +82,16 @@ class Portfolio:
             if quantity != Decimal("0")
         }
 
-    
+
+    def unrealized_pnl(self,price_provider: PriceProvider,) -> dict[str, Decimal]:
+        positions = self.positions()
+        average_costs = self.average_costs()
+
+        return {
+            ticker: (price_provider.get_price(ticker) - average_costs[ticker]) * quantity 
+            for ticker, quantity in positions.items()
+        }
+
     def market_values(self,price_provider: PriceProvider,) -> dict[str, Decimal]:
         return {
             ticker: quantity * price_provider.get_price(ticker)
