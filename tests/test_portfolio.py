@@ -276,3 +276,138 @@ def test_market_values_fail_when_price_is_missing() -> None:
         match="Price not available for ticker: VWCE",
     ):
         portfolio.market_values(price_provider)
+
+    
+def test_average_cost_of_single_purchase_includes_fees() -> None:
+    portfolio = Portfolio([
+        make_transaction(
+            "BUY",
+            ticker="VWCE",
+            quantity="10",
+            price="100",
+            fees="2",
+        ),
+    ])
+
+    assert portfolio.average_costs() == {
+        "VWCE": Decimal("100.2"),
+    }
+
+
+def test_average_cost_of_multiple_purchases() -> None:
+    portfolio = Portfolio([
+        make_transaction(
+            "BUY",
+            ticker="VWCE",
+            quantity="10",
+            price="100",
+            fees="2",
+        ),
+        make_transaction(
+            "BUY",
+            ticker="VWCE",
+            quantity="5",
+            price="130",
+            fees="1",
+        ),
+    ])
+
+    assert portfolio.average_costs() == {
+        "VWCE": Decimal("110.2"),
+    }
+
+
+def test_partial_sell_does_not_change_average_cost() -> None:
+    portfolio = Portfolio([
+        make_transaction(
+            "BUY",
+            quantity="10",
+            price="100",
+        ),
+        make_transaction(
+            "BUY",
+            quantity="10",
+            price="120",
+        ),
+        make_transaction(
+            "SELL",
+            quantity="5",
+            price="150",
+        ),
+    ])
+
+    assert portfolio.average_costs() == {
+        "VWCE": Decimal("110"),
+    }
+
+
+def test_full_sell_removes_average_cost() -> None:
+    portfolio = Portfolio([
+        make_transaction(
+            "BUY",
+            quantity="10",
+            price="100",
+            fees="2",
+        ),
+        make_transaction(
+            "SELL",
+            quantity="10",
+            price="120",
+            fees="1",
+        ),
+    ])
+
+    assert portfolio.average_costs() == {}
+
+
+def test_new_purchase_after_full_sell_starts_new_average_cost() -> None:
+    portfolio = Portfolio([
+        make_transaction(
+            "BUY",
+            quantity="10",
+            price="100",
+        ),
+        make_transaction(
+            "SELL",
+            quantity="10",
+            price="120",
+        ),
+        make_transaction(
+            "BUY",
+            quantity="5",
+            price="130",
+            fees="1",
+        ),
+    ])
+
+    assert portfolio.average_costs() == {
+        "VWCE": Decimal("130.2"),
+    }
+
+
+def test_average_costs_are_calculated_separately_by_ticker() -> None:
+    portfolio = Portfolio([
+        make_transaction(
+            "BUY",
+            ticker="VWCE",
+            quantity="10",
+            price="100",
+        ),
+        make_transaction(
+            "BUY",
+            ticker="XEON",
+            quantity="5",
+            price="140",
+        ),
+        make_transaction(
+            "BUY",
+            ticker="VWCE",
+            quantity="10",
+            price="120",
+        ),
+    ])
+
+    assert portfolio.average_costs() == {
+        "VWCE": Decimal("110"),
+        "XEON": Decimal("140"),
+    }
