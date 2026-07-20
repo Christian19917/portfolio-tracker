@@ -5,6 +5,15 @@ from src.portfolio import Portfolio
 from src.providers.yahoo_price_provider import YahooPriceProvider
 from src.transaction_reader import read_transactions
 
+from datetime import date
+from decimal import Decimal
+
+from src.portfolio_history import PortfolioHistory
+
+from src.charts.portfolio_chart import (
+    plot_portfolio_history,
+)
+
 
 def main() -> None:
     transactions = read_transactions(
@@ -20,8 +29,8 @@ def main() -> None:
         return
 
     price_provider = YahooPriceProvider({
-        "VWCE": "VWCE.DE",
-        "XEON": "XEON.DE",
+    "MTD": "MTD.PA",
+    "ALLW": "ALLW.DE",
     })
 
     average_costs = portfolio.average_costs()
@@ -73,6 +82,39 @@ def main() -> None:
         f"{total_unrealized_pnl:>18.2f}"
     )
 
+
+    history_builder = PortfolioHistory(
+    transactions=transactions,
+    price_provider=price_provider,
+    initial_capital=Decimal("10000"),
+)
+
+    snapshots = history_builder.build(
+    start_date=date(2026, 7, 8),
+    end_date=date.today(),
+)
+
+    print("\nPORTFOLIO HISTORY")
+    print("-" * 85)
+
+    for snapshot in snapshots:
+        print(
+            f"{snapshot.snapshot_date} | "
+            f"Assets: €{snapshot.market_value:.2f} | "
+            f"Cash: €{snapshot.cash:.2f} | "
+            f"Total: €{snapshot.total_value:.2f} | "
+            f"P/L: €{snapshot.profit_loss:.2f}"
+        )
+
+
+    plot_portfolio_history(
+    snapshots,
+    output_path=Path(
+        "output/portfolio_history.png"
+    ),
+)
+
+    
 
 if __name__ == "__main__":
     main()

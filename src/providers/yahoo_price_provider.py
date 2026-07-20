@@ -1,6 +1,10 @@
 from decimal import Decimal, InvalidOperation
 from typing import Mapping
 
+from datetime import date, timedelta
+
+import pandas as pd
+
 import yfinance as yf
 
 
@@ -58,3 +62,49 @@ class YahooPriceProvider:
                 f"Invalid price received for ticker: "
                 f"{normalized_ticker}"
             ) from error
+    
+
+    def get_history(self,ticker: str,start_date: date,end_date: date,) -> pd.Series:
+        normalized_ticker = ticker.strip().upper()
+
+        yahoo_ticker = self._ticker_mapping.get(
+            normalized_ticker,
+            normalized_ticker,
+        )
+
+        # yfinance interpreta end come data esclusiva.
+        exclusive_end = end_date + timedelta(days=1)
+
+        try:
+            history = yf.download(
+                yahoo_ticker,
+                start=start_date.isoformat(),
+                end=exclusive_end.isoformat(),
+                auto_adjust=False,
+                progress=False,
+                threads=False,
+            )
+        except Exception as error:
+            raise ValueError(
+                f"Could not retrieve history for ticker: "
+                f"{normalized_ticker}"
+            ) from error
+
+        if history.empty or "Close" not in history:
+            raise ValueError(
+                f"Historical prices not available for ticker: "
+                f"{normalized_ticker}"
+            )
+
+        closing_prices = history["Close"].dropna()
+
+        # Con un singolo ticker, alcune versioni di yfinance
+        # restituiscono comunque un DataFrame.
+        if isinstance(closing_prices, pd.DataFrame):
+            closing_prices = closing_prices.iloc[:, 0]
+
+        closing_prices.index = pd.to_datetime(
+            closing_prices.index
+        ).normalize()
+
+        return closing_prices
