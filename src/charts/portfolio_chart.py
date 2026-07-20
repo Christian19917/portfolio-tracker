@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -10,15 +11,17 @@ def plot_portfolio_history(
     output_path: Path | None = None,
 ) -> None:
     if not snapshots:
-        raise ValueError("Cannot plot an empty portfolio history")
+        raise ValueError(
+            "Cannot plot an empty portfolio history"
+        )
 
     dates = [
         snapshot.snapshot_date
         for snapshot in snapshots
     ]
 
-    total_values = [
-        float(snapshot.total_value)
+    portfolio_values = [
+        float(snapshot.market_value)
         for snapshot in snapshots
     ]
 
@@ -33,73 +36,79 @@ def plot_portfolio_history(
         latest_snapshot.profit_loss
         / latest_snapshot.invested_capital
         * 100
+        if latest_snapshot.invested_capital != 0
+        else Decimal("0")
     )
+
+    line_color = (
+        "green"
+        if latest_snapshot.profit_loss >= 0
+        else "red"
+    )
+
+    positive_mask = [
+        value >= capital
+        for value, capital in zip(
+            portfolio_values,
+            invested_capital,
+        )
+    ]
+
+    negative_mask = [
+        value < capital
+        for value, capital in zip(
+            portfolio_values,
+            invested_capital,
+        )
+    ]
 
     plt.figure(figsize=(11, 6))
 
-    line_color = (
-    "green"
-    if latest_snapshot.profit_loss >= 0
-    else "red"
-)
+    plt.plot(
+        dates,
+        portfolio_values,
+        linewidth=2.5,
+        color=line_color,
+        label="Portfolio value",
+    )
 
     plt.plot(
-    dates,
-    total_values,
-    marker="o",
-    linewidth=2.5,
-    color=line_color,
-    label="Portfolio value",
-)
-
-    plt.plot(
-    dates,
-    invested_capital,
-    linestyle="--",
-    linewidth=2,
-    color="gray",
-    label="Invested capital",
-)
-
-    plt.fill_between(
-    dates,
-    total_values,
-    invested_capital,
-    where=[
-        total >= invested
-        for total, invested in zip(
-            total_values,
-            invested_capital,
-        )
-    ],
-    color="green",
-    alpha=0.25,
-    interpolate=True,
-)
+        dates,
+        invested_capital,
+        linestyle="--",
+        linewidth=2,
+        color="gray",
+        label="Invested capital",
+    )
 
     plt.fill_between(
         dates,
-        total_values,
+        portfolio_values,
         invested_capital,
-        where=[
-            total < invested
-        for total, invested in zip(
-            total_values,
-            invested_capital,
-        )
-    ],
-    color="red",
-    alpha=0.25,
-    interpolate=True,
-)
+        where=positive_mask,
+        color="green",
+        alpha=0.25,
+        interpolate=True,
+    )
 
+    plt.fill_between(
+        dates,
+        portfolio_values,
+        invested_capital,
+        where=negative_mask,
+        color="red",
+        alpha=0.25,
+        interpolate=True,
+    )
 
     plt.title(
         "Portfolio performance\n"
-        f"Current value: €{latest_snapshot.total_value:.2f} | "
-        f"P/L: €{latest_snapshot.profit_loss:.2f} "
+        f"Portfolio Value: "
+        f"€{latest_snapshot.market_value:.2f} | "
+        f"Unrealized P/L: €{latest_snapshot.profit_loss:.2f} "
         f"({return_percentage:.2f}%)"
     )
+
     plt.xlabel("Date")
     plt.ylabel("Value (€)")
     plt.legend()

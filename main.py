@@ -20,6 +20,14 @@ def main() -> None:
         Path("data/transactions.csv")
     )
 
+    if not transactions:
+        print("No transactions found.")
+        return
+    start_date = min(
+        transaction.transaction_date
+        for transaction in transactions
+    )
+
     portfolio = Portfolio(transactions)
 
     positions = portfolio.positions()
@@ -31,6 +39,8 @@ def main() -> None:
     price_provider = YahooPriceProvider({
     "MTD": "MTD.PA",
     "ALLW": "ALLW.DE",
+    "VWCE": "VWCE.DE",
+    "XEON": "XEON.DE",
     })
 
     average_costs = portfolio.average_costs()
@@ -85,12 +95,11 @@ def main() -> None:
 
     history_builder = PortfolioHistory(
     transactions=transactions,
-    price_provider=price_provider,
-    initial_capital=Decimal("10000"),
+    price_provider=price_provider
 )
 
     snapshots = history_builder.build(
-    start_date=date(2026, 7, 8),
+    start_date=start_date,
     end_date=date.today(),
 )
 
@@ -101,8 +110,6 @@ def main() -> None:
         print(
             f"{snapshot.snapshot_date} | "
             f"Assets: €{snapshot.market_value:.2f} | "
-            f"Cash: €{snapshot.cash:.2f} | "
-            f"Total: €{snapshot.total_value:.2f} | "
             f"P/L: €{snapshot.profit_loss:.2f}"
         )
 

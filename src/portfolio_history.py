@@ -23,8 +23,6 @@ class HistoricalPriceProvider(Protocol):
 class PortfolioSnapshot:
     snapshot_date: date
     market_value: Decimal
-    cash: Decimal
-    total_value: Decimal
     invested_capital: Decimal
     profit_loss: Decimal
 
@@ -34,14 +32,12 @@ class PortfolioHistory:
         self,
         transactions: list[Transaction],
         price_provider: HistoricalPriceProvider,
-        initial_capital: Decimal,
     ) -> None:
         self._transactions = sorted(
             transactions,
             key=lambda transaction: transaction.transaction_date,
         )
         self._price_provider = price_provider
-        self._initial_capital = initial_capital
 
     def build(
         self,
@@ -71,6 +67,7 @@ class PortfolioHistory:
             for ticker in tickers
         }
 
+
         snapshots: list[PortfolioSnapshot] = []
 
         current_date = start_date
@@ -81,6 +78,10 @@ class PortfolioHistory:
                 for transaction in self._transactions
                 if transaction.transaction_date <= current_date
             ]
+
+            invested_capital = self._calculate_invested_capital(
+                completed_transactions
+            )
 
             portfolio = Portfolio(completed_transactions)
             positions = portfolio.positions()
@@ -100,20 +101,13 @@ class PortfolioHistory:
                     * Decimal(str(historical_price))
                 )
 
-            cash = self._calculate_cash(
-                completed_transactions
-            )
-
-            total_value = market_value + cash
-            profit_loss = total_value - self._initial_capital
+            profit_loss = market_value - invested_capital
 
             snapshots.append(
                 PortfolioSnapshot(
                     snapshot_date=current_date,
                     market_value=market_value,
-                    cash=cash,
-                    total_value=total_value,
-                    invested_capital=self._initial_capital,
+                    invested_capital=invested_capital,
                     profit_loss=profit_loss,
                 )
             )
@@ -122,25 +116,6 @@ class PortfolioHistory:
 
         return snapshots
 
-    def _calculate_cash(
-        self,
-        transactions: list[Transaction],
-    ) -> Decimal:
-        cash = self._initial_capital
-
-        for transaction in transactions:
-            gross_value = (
-                transaction.quantity
-                * transaction.price
-            )
-
-            if transaction.transaction_type == "BUY":
-                cash -= gross_value + transaction.fees
-
-            elif transaction.transaction_type == "SELL":
-                cash += gross_value - transaction.fees
-
-        return cash
 
     @staticmethod
     def _prepare_history(
@@ -162,3 +137,29 @@ class PortfolioHistory:
         return normalized_history.reindex(
             calendar
         ).ffill()
+    
+    def _calculate_invested_capital(
+    self,
+    transactions: list[Transaction],
+) -> Decimal:
+        invested_capital = Decimal("0")
+
+        for transaction in transactions:
+            gross_value = (
+                transaction.quantity
+                * transaction.price
+        )
+
+            if transaction.transaction_type == "BUY":
+                invested_capital += (
+                    gross_value
+                    + transaction.fees
+            )
+
+            elif transaction.transaction_type == "SELL":
+                invested_capital -= (
+                    gross_value
+                    - transaction.fees
+            )
+
+        return invested_capital
