@@ -14,6 +14,13 @@ from src.charts.portfolio_chart import (
     plot_portfolio_history,
 )
 
+from src.asset_allocation import (
+    allocation_by_asset_class,
+    calculate_allocation,
+)
+from src.asset_metadata import ASSET_METADATA
+from src.charts.allocation_chart import plot_allocation
+
 
 def main() -> None:
     transactions = read_transactions(
@@ -46,6 +53,15 @@ def main() -> None:
     average_costs = portfolio.average_costs()
 
     market_values = portfolio.market_values(price_provider)
+
+    ticker_allocation = calculate_allocation(
+        market_values
+    )
+    
+    asset_class_allocation = allocation_by_asset_class(
+        market_values,
+        ASSET_METADATA,
+    )
 
     unrealized_pnl = portfolio.unrealized_pnl(price_provider)
 
@@ -118,6 +134,30 @@ def main() -> None:
     snapshots,
     output_path=Path(
         "output/portfolio_history.png"
+    ),
+)
+    
+    plot_allocation(
+    {
+        ticker: float(percentage)
+        for ticker, percentage
+        in ticker_allocation.items()
+    },
+    title="Allocation by ETF",
+    output_path=Path(
+        "output/allocation_by_etf.png"
+    ),
+)
+
+    plot_allocation(
+    {
+        asset_class: float(percentage)
+        for asset_class, percentage
+        in asset_class_allocation.items()
+    },
+        title="Allocation by asset class",
+        output_path=Path(
+            "output/allocation_by_asset_class.png"
     ),
 )
 

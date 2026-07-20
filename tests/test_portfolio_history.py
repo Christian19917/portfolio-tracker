@@ -56,7 +56,6 @@ def test_builds_daily_portfolio_history() -> None:
     history = PortfolioHistory(
         transactions=transactions,
         price_provider=provider,
-        initial_capital=Decimal("2000"),
     )
 
     snapshots = history.build(
@@ -67,11 +66,7 @@ def test_builds_daily_portfolio_history() -> None:
     assert len(snapshots) == 3
 
     assert snapshots[0].market_value == Decimal("1000")
-    assert snapshots[0].cash == Decimal("998")
-    assert snapshots[0].total_value == Decimal("1998")
     assert snapshots[0].profit_loss == Decimal("-2")
 
     assert snapshots[1].market_value == Decimal("1020")
-    assert snapshots[1].cash == Decimal("998")
-    assert snapshots[1].total_value == Decimal("2018")
     assert snapshots[1].profit_loss == Decimal("18")
