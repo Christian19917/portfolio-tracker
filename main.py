@@ -1,18 +1,6 @@
-from decimal import Decimal
-from pathlib import Path
-
-from src.portfolio import Portfolio
-from src.providers.yahoo_price_provider import YahooPriceProvider
-from src.transaction_reader import read_transactions
-
 from datetime import date
 from decimal import Decimal
-
-from src.portfolio_history import PortfolioHistory
-
-from src.charts.portfolio_chart import (
-    plot_portfolio_history,
-)
+from pathlib import Path
 
 from src.asset_allocation import (
     allocation_by_asset_class,
@@ -20,20 +8,37 @@ from src.asset_allocation import (
 )
 from src.asset_metadata import ASSET_METADATA
 from src.charts.allocation_chart import plot_allocation
+from src.charts.portfolio_chart import plot_portfolio_history
+from src.portfolio import Portfolio
+from src.portfolio_analytics import (
+    calculate_market_values,
+    calculate_total_market_value,
+    calculate_total_unrealized_pnl,
+    calculate_unrealized_pnl,
+)
+from src.portfolio_history import PortfolioHistory
+from src.providers.yahoo_price_provider import YahooPriceProvider
+from src.transaction_reader import read_transactions
+
+
+TRANSACTIONS_PATH = Path("data/transactions.csv")
+
+TICKER_MAPPING = {
+    "MTD": "MTD.PA",
+    "ALLW": "ALLW.DE",
+    "VWCE": "VWCE.DE",
+    "XEON": "XEON.DE",
+}
 
 
 def main() -> None:
     transactions = read_transactions(
-        Path("data/transactions.csv")
+        TRANSACTIONS_PATH
     )
 
     if not transactions:
         print("No transactions found.")
         return
-    start_date = min(
-        transaction.transaction_date
-        for transaction in transactions
-    )
 
     portfolio = Portfolio(transactions)
 
@@ -43,27 +48,43 @@ def main() -> None:
         print("The portfolio is empty.")
         return
 
-    price_provider = YahooPriceProvider({
-    "MTD": "MTD.PA",
-    "ALLW": "ALLW.DE",
-    "VWCE": "VWCE.DE",
-    "XEON": "XEON.DE",
-    })
+    price_provider = YahooPriceProvider(
+        TICKER_MAPPING
+    )
+
+    current_prices = {
+        ticker: price_provider.get_price(ticker)
+        for ticker in positions
+    }
 
     average_costs = portfolio.average_costs()
 
-    market_values = portfolio.market_values(price_provider)
+    market_values = calculate_market_values(
+        portfolio,
+        current_prices,
+    )
+
+    unrealized_pnl = calculate_unrealized_pnl(
+        portfolio,
+        current_prices,
+    )
 
     ticker_allocation = calculate_allocation(
         market_values
     )
-    
+
     asset_class_allocation = allocation_by_asset_class(
         market_values,
         ASSET_METADATA,
     )
 
-    unrealized_pnl = portfolio.unrealized_pnl(price_provider)
+    total_market_value = calculate_total_market_value(
+        market_values
+    )
+
+    total_unrealized_pnl = calculate_total_unrealized_pnl(
+        unrealized_pnl
+    )
 
     print("\nPORTFOLIO SUMMARY")
     print("-" * 90)
@@ -79,17 +100,11 @@ def main() -> None:
 
     print("-" * 90)
 
-    total_market_value = Decimal("0")
-    total_unrealized_pnl = Decimal("0")
-
     for ticker, quantity in positions.items():
-        current_price = price_provider.get_price(ticker)
+        current_price = current_prices[ticker]
         average_cost = average_costs[ticker]
         market_value = market_values[ticker]
         pnl = unrealized_pnl[ticker]
-
-        total_market_value += market_value
-        total_unrealized_pnl += pnl
 
         print(
             f"{ticker:<10}"
@@ -108,16 +123,20 @@ def main() -> None:
         f"{total_unrealized_pnl:>18.2f}"
     )
 
+    start_date = min(
+        transaction.transaction_date
+        for transaction in transactions
+    )
 
     history_builder = PortfolioHistory(
-    transactions=transactions,
-    price_provider=price_provider
-)
+        transactions=transactions,
+        price_provider=price_provider,
+    )
 
     snapshots = history_builder.build(
-    start_date=start_date,
-    end_date=date.today(),
-)
+        start_date=start_date,
+        end_date=date.today(),
+    )
 
     print("\nPORTFOLIO HISTORY")
     print("-" * 85)
@@ -129,39 +148,37 @@ def main() -> None:
             f"P/L: €{snapshot.profit_loss:.2f}"
         )
 
-
     plot_portfolio_history(
-    snapshots,
-    output_path=Path(
-        "output/portfolio_history.png"
-    ),
-)
-    
-    plot_allocation(
-    {
-        ticker: float(percentage)
-        for ticker, percentage
-        in ticker_allocation.items()
-    },
-    title="Allocation by ETF",
-    output_path=Path(
-        "output/allocation_by_etf.png"
-    ),
-)
+        snapshots,
+        output_path=Path(
+            "output/portfolio_history.png"
+        ),
+    )
 
     plot_allocation(
-    {
-        asset_class: float(percentage)
-        for asset_class, percentage
-        in asset_class_allocation.items()
-    },
+        {
+            ticker: float(percentage)
+            for ticker, percentage
+            in ticker_allocation.items()
+        },
+        title="Allocation by ETF",
+        output_path=Path(
+            "output/allocation_by_etf.png"
+        ),
+    )
+
+    plot_allocation(
+        {
+            asset_class: float(percentage)
+            for asset_class, percentage
+            in asset_class_allocation.items()
+        },
         title="Allocation by asset class",
         output_path=Path(
             "output/allocation_by_asset_class.png"
-    ),
-)
+        ),
+    )
 
-    
 
 if __name__ == "__main__":
     main()
