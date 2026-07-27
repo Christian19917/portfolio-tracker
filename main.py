@@ -20,16 +20,10 @@ from src.portfolio_history import PortfolioHistory
 from src.providers.yahoo_price_provider import YahooPriceProvider
 from src.transaction_reader import read_transactions
 
-
-TRANSACTIONS_PATH = Path("data/transactions.csv")
-
-TICKER_MAPPING = {
-    "MTD": "MTD.PA",
-    "ALLW": "ALLW.DE",
-    "VWCE": "VWCE.DE",
-    "XEON": "XEON.DE",
-}
-
+from src.config import (
+    TICKER_MAPPING,
+    TRANSACTIONS_PATH,
+)
 
 def main() -> None:
     transactions = read_transactions(
@@ -56,6 +50,11 @@ def main() -> None:
         ticker: price_provider.get_price(ticker)
         for ticker in positions
     }
+
+    start_date = min(
+        transaction.transaction_date
+        for transaction in portfolio._transactions
+    )
 
     average_costs = portfolio.average_costs()
 
