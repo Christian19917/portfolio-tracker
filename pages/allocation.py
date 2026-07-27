@@ -136,7 +136,8 @@ ticker_dataframe = pd.DataFrame(
                 if ticker in ASSET_METADATA
                 else ticker
             ),
-            "Market value": float(
+            "Market value": float(market_values[ticker]),
+            "Market value formatted": format_currency(
                 market_values[ticker]
             ),
             "Allocation": float(
@@ -195,27 +196,28 @@ allocation_column, asset_class_column = st.columns(
 with allocation_column:
     st.markdown("#### By ETF")
 
+    ticker_dataframe["Hover"] = ticker_dataframe.apply(
+        lambda row: (
+            f"<b>{row['Ticker']}</b><br>"
+            f"{row['Name']}<br><br>"
+            f"Allocation: {row['Allocation']:.2f}%<br>"
+            f"Market value: {row['Market value formatted']}"
+        ),
+        axis=1,
+    )
+
     ticker_figure = px.pie(
         ticker_dataframe,
         names="Ticker",
         values="Allocation",
         hole=0.58,
-        custom_data=[
-            "Name",
-            "Market value",
-        ],
     )
 
     ticker_figure.update_traces(
         textposition="inside",
         textinfo="percent+label",
-        hovertemplate=(
-            "<b>%{label}</b><br>"
-            "%{customdata[0]}<br><br>"
-            "Allocation: %{value:.2f}%<br>"
-            "Market value: €%{customdata[1]:,.2f}"
-            "<extra></extra>"
-        ),
+        hovertext=ticker_dataframe["Hover"],
+        hovertemplate="%{hovertext}<extra></extra>",
     )
 
     ticker_figure.update_layout(
@@ -236,7 +238,6 @@ with allocation_column:
             "displayModeBar": False,
         },
     )
-
 
 with asset_class_column:
     st.markdown("#### By asset class")
@@ -293,7 +294,14 @@ st.caption(
 
 
 st.dataframe(
-    ticker_dataframe,
+    ticker_dataframe[
+        [
+            "Ticker",
+            "Name",
+            "Market value",
+            "Allocation",
+        ]
+    ],
     width="stretch",
     hide_index=True,
     column_config={

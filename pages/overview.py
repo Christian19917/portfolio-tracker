@@ -21,6 +21,11 @@ from src.portfolio_analytics import (
     calculate_unrealized_pnl,
 )
 
+from src.config import (
+    clear_portfolio_goal,
+    get_portfolio_goal,
+    save_portfolio_goal,
+)
 
 # --------------------------------------------------
 # HELPERS
@@ -101,7 +106,7 @@ def build_recent_transactions_dataframe(
 # --------------------------------------------------
 
 if "portfolio_goal" not in st.session_state:
-    st.session_state.portfolio_goal = None
+    st.session_state.portfolio_goal = get_portfolio_goal()
 
 
 # --------------------------------------------------
@@ -253,12 +258,22 @@ with goal_input_column:
             "Target value (€)",
             min_value=0.0,
             step=1000.0,
-            value=0.0,
+            value=(
+                float(st.session_state.portfolio_goal)
+                if st.session_state.portfolio_goal is not None
+                else 0.0
+            ),
             format="%.2f",
         )
 
+        button_label = (
+            "Update goal"
+            if st.session_state.portfolio_goal is not None
+            else "Set goal"
+        )
+
         if st.button(
-            "Set goal",
+            button_label,
             type="primary",
             width="stretch",
         ):
@@ -267,18 +282,18 @@ with goal_input_column:
                     "Enter a target greater than zero."
                 )
 
-            elif Decimal(
-                str(goal_input)
-            ) <= total_market_value:
+            elif Decimal(str(goal_input)) <= total_market_value:
                 st.warning(
                     "Your goal should be greater than "
                     "the current portfolio value."
                 )
 
             else:
-                st.session_state.portfolio_goal = (
-                    float(goal_input)
-                )
+                goal = float(goal_input)
+
+                save_portfolio_goal(goal)
+
+                st.session_state.portfolio_goal = goal
 
                 st.rerun()
 
