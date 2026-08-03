@@ -52,26 +52,6 @@ Users can define their own portfolio target directly from the application.
 
 The dashboard then displays the current progress toward that goal through a visual progress indicator.
 
-## Screenshots
-
-Add screenshots of the application here.
-
-### Overview
-
-`assets/overview.png`
-
-### Performance
-
-`assets/performance.png`
-
-### Asset Allocation
-
-`assets/allocation.png`
-
-### Transactions
-
-`assets/transactions.png`
-
 ## Project Structure
 
 ```text
